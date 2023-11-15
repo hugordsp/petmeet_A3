@@ -24,6 +24,20 @@ def api_pet_meet(app):
     pet_parser = reqparse.RequestParser()
     pet_parser.add_argument('Nome', type=str, required=True)
     pet_parser.add_argument('Especie', type=str, required=True)
+    pet_parser.add_argument('Raca', type=str)
+    pet_parser.add_argument('Genero', type=str)
+    pet_parser.add_argument('DataNascimento', type=str)
+    pet_parser.add_argument('Cor', type=str)
+    pet_parser.add_argument('Peso', type=float)
+    pet_parser.add_argument('Imagem', type=str)
+    pet_parser.add_argument('Notas', type=str)
+    pet_parser.add_argument('Vacinacao', type=str)
+    pet_parser.add_argument('Medicamentos', type=str)
+    pet_parser.add_argument('UltimaConsulta', type=str)
+    pet_parser.add_argument('Veterinario', type=str)
+    pet_parser.add_argument('HistoricoSaude', type=str)
+    pet_parser.add_argument('Alimentacao', type=str)
+    pet_parser.add_argument('Comportamento', type=str)
 
     # Login Parser
     login_parser = reqparse.RequestParser()
@@ -38,13 +52,27 @@ def api_pet_meet(app):
 
         # Define the pet model
     pet = api.model(
-        "Pet",
-        {
-            "ID": fields.Integer(readonly=True),
-            "Nome": fields.String(required=True, description="Pet name"),
-            "Especie": fields.String(required=True, description="Species"),
-        },
-    )
+    "Pet",
+    {
+        "ID": fields.Integer(readonly=True),
+        "Nome": fields.String(required=True, description="Pet name"),
+        "Especie": fields.String(required=True, description="Species"),
+        "Raca": fields.String(description="Breed"),
+        "Genero": fields.String(description="Gender"),
+        "DataNascimento": fields.String(description="Date of Birth"),
+        "Cor": fields.String(description="Color"),
+        "Peso": fields.Float(description="Weight"),
+        "Imagem": fields.String(description="Image address"),
+        "Notas": fields.String(description="Notes"),
+        "Vacinacao": fields.String(description="Vaccination"),
+        "Medicamentos": fields.String(description="Medications"),
+        "UltimaConsulta": fields.String(description="Last Consultation"),
+        "Veterinario": fields.String(description="Veterinarian"),
+        "HistoricoSaude": fields.String(description="Health History"),
+        "Alimentacao": fields.String(description="Feeding"),
+        "Comportamento": fields.String(description="Behavior"),
+    },
+)
 
     # Define the user model
     user = api.model(
