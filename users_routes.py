@@ -2,6 +2,7 @@ from flask_restx import Resource
 from api import api_pet_meet
 from auth import *
 import bcrypt
+import sqlite3
 
 
 def register_users_routes(app):
@@ -151,27 +152,42 @@ def register_users_routes(app):
         @ns_users.doc(responses={204: "Pet deleted"})
         def delete(self, user_id, pet_id):
             """Deletar PET associado a usuário (PRECISA DE LOGIN)"""
-            if user_token is not None:
-                cursor.execute("SELECT * FROM Usuario WHERE ID=?", (user_id,))
-                user = cursor.fetchone()
-                if not user:
-                    api.abort(
-                        404, "User with ID {} doesn't exist".format(user_id))
+            try:
+                if user_token is not None:
+                    # Verificar se o usuário existe antes de proceder com a exclusão do pet
+                    cursor.execute("SELECT * FROM Usuario WHERE ID=?", (user_id,))
+                    user = cursor.fetchone()
+                    if not user:
+                        return {'message': f'User with ID {user_id} does not exist'}, 404
 
-                cursor.execute(
-                    "DELETE FROM PetUsuario WHERE UsuarioID=? AND PetID=?", (user_id, pet_id))
-                conn.commit()
+                    # Verificar se o pet está associado a esse usuário
+                    cursor.execute("SELECT * FROM PetUsuario WHERE UsuarioID=? AND PetID=?", (user_id, pet_id))
+                    pet_user_association = cursor.fetchone()
+                    if not pet_user_association:
+                        return {'message': f'Pet with ID {pet_id} is not associated with User ID {user_id}'}, 404
 
-                cursor.execute(
-                    "SELECT COUNT(*) FROM PetUsuario WHERE PetID=?", (pet_id,))
-                pet_count = cursor.fetchone()[0]
-                if pet_count == 0:
-                    cursor.execute("DELETE FROM Pet WHERE ID=?", (pet_id))
+                    # Verificar se o pet não está associado a nenhum outro usuário
+                    cursor.execute("SELECT COUNT(*) FROM PetUsuario WHERE PetID=?", (pet_id,))
+                    pet_count = cursor.fetchone()[0]
+
+                    if pet_count == 1:
+                        # Se o pet não estiver associado a nenhum outro usuário, exclua-o do banco de dados
+                        cursor.execute("DELETE FROM Pet WHERE ID=?", (pet_id,))
+                        conn.commit()
+                        return {'message': 'Pet deleted successfully.'}, 204
+
+                    # Se o pet estiver associado a outros usuários, apenas remova a associação com o usuário atual
+                    cursor.execute("DELETE FROM PetUsuario WHERE UsuarioID=? AND PetID=?", (user_id, pet_id))
                     conn.commit()
+                    return {'message': 'Pet association removed from user successfully.'}, 204
 
-                return '', 204
-            else:
-                return {'message': 'Access denied. Token is missing or invalid'}, 401
+                else:
+                    return {'message': 'Access denied. Token is missing or invalid'}, 401
+
+            except sqlite3.Error as e:
+                conn.rollback()
+                return {'message': f'Error deleting pet: {str(e)}'}, 500
+
 
     @ns_users.route('/login')
     class Login(Resource):
@@ -260,14 +276,3 @@ def register_users_routes(app):
 
             users_pets_list = list(users_pets_dict.values())
             return users_pets_list
-
-    @ns_users.route('/list-all-users')
-    class AllUsers(Resource):
-        @ns_users.marshal_list_with(user)
-        def get(self):
-            """Listar todos os usuários existentes"""
-            cursor.execute("SELECT * FROM Usuario")
-            users = cursor.fetchall()
-            user_list = [{'ID': user[0], 'Nome': user[1],
-                          'Email': user[2], 'Senha': user[3]} for user in users]
-            return user_list
